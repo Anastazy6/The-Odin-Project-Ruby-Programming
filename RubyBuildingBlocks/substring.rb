@@ -8,12 +8,13 @@ def substring(string,dictionary)                                #Iterative, brut
         result = {}
         dictionary.each do |word|
                 separate_words.each do |gair|
-                        if gair =~ /#{word}/
+                        while gair =~ /#{word}/
                                 if result.keys.include?(word)
                                         result[word] = result[word] + 1
                                 else 
                                         result[word] = 1
                                 end
+                                gair = gair.sub(word, "")
                         end
                 end
         end
@@ -32,3 +33,4 @@ example2 = "Blood death knights are a fun specialization to play in WoW. You'll 
 
 puts substring(example1,dictionary1)
 puts substring(example2,dictionary1)
+puts substring("Varg varg varg vargvargvarg", dictionary1)  # 6 vargs here
