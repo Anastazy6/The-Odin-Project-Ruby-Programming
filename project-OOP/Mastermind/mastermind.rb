@@ -6,7 +6,7 @@ require 'colorize'
 # A fancy name for assertion error.
 class TheProgrammerIsStupidError < StandardError; end
 # Raised when an instance of Player is created that isn't neither Human nor Computer
-class UnspecifiedPlayerSubclassError < StandardError; end
+class UnspecifiedPlayerSubclassError < TheProgrammerIsStupidError; end
 
 # Makes the user enter a valid 'yes' or 'no' input. No excuses, this method
 #   is patient and won't stop  until a valid input is given.
@@ -21,6 +21,7 @@ def force_valid_yes_or_no_input
     puts 'Case is ignored.'.colorize(:yellow)
   end
 end
+
 ######################################## MAIN ##########################################
 
 # Contains methods that help the user set the game settings and play another game.
@@ -31,8 +32,8 @@ class PublicStaticVoidMainStringArgs
   attr_reader :default_settings
 
   def initialize
-    @default_settings = { rounds: 2, code_length: 4, guesses: 12, memory_announcements: true }
-    @settings = { rounds: 2, code_length: 4, guesses: 12, memory_announcements: true }
+    @default_settings = { rounds: 2, code_length: 4, guesses: 12, verbose: true }
+    @settings = { rounds: 2, code_length: 4, guesses: 12, verbose: true }
   end
 
   # This is where the entire program happens within. Allows to play multiple games and
@@ -45,10 +46,6 @@ class PublicStaticVoidMainStringArgs
       puts 'Do you want to play another game? (yes/no): '.colorize(:yellow)
       break unless force_valid_yes_or_no_input
     end
-  # rescue TheProgrammerIsStupidError => e
-    # uts "A fatal error has occured due to the programmer being a total derp: #{e}"
-      # .colorize(:red)
-    # exit(-1)
   end
 
   private
@@ -70,9 +67,10 @@ class PublicStaticVoidMainStringArgs
   end
 
   # Responsible for the number of guesses the guesser is allowed to make within one game.
-  def change_guesses
+  def change_guesses # rubocop:disable Metrics/AbcSize due to heavy formatting.
     puts "Changing max guesses. Current value: #{settings[:guesses]}.".colorize(:blue)
-    puts 'New value must be an integer between 4 and 30; default is 12'.colorize(:yellow)
+    puts  "New value must be an integer between 4 and 30; default is 12.\n"\
+          "Recommended value: #{(settings[:code_length] * 4 - 4)}.".colorize(:yellow)
     answer = gets.chomp.to_i
     settings[:guesses] = answer.between?(4, 30) ? answer : default_settings[:guesses]
   end
@@ -91,7 +89,7 @@ class PublicStaticVoidMainStringArgs
     change_rounds
     change_code_length
     change_guesses
-    toggle_memory_announcements
+    toggle_verbosity
   end
 
   # Explains briefly how to change the settings or change a value to default.
@@ -120,10 +118,10 @@ class PublicStaticVoidMainStringArgs
     puts "\n"
   end
 
-  def toggle_memory_announcements
+  def toggle_verbosity
     puts "Do you want to receive a print of Computer'"\
       's guessing history after each round? (yes/no, default is yes)'.colorize(:blue)
-    settings[:memory_announcements] = force_valid_yes_or_no_input
+    settings[:verbose] = force_valid_yes_or_no_input
   end
 end
 
@@ -139,7 +137,7 @@ class Game
     @rounds = settings[:rounds] * 2
     @code_length = settings[:code_length]
     @max_guesses = settings[:guesses]
-    @verbose = settings[:memory_announcements]
+    @verbose = settings[:verbose]
 
     @player1 = human_wants_to_start? ? Human.new(settings) : Computer.new(settings)
     @player2 = human_starts? ? Computer.new(settings) : Human.new(settings)
@@ -249,7 +247,7 @@ class Round
   def count_correctly_placed_digits(code, guess)
     counter = 0
     code.length.times { |i| counter += 1 if code[i] == guess[i] }
-    puts 'Dayum, you got it!'.colorize(:green) if code == guess
+    puts "\nDayum, you got it!\n".colorize(:green).underline if code == guess
     counter
   end
 
@@ -324,13 +322,14 @@ end
 #   of human/AI behaviour are combined here under one name that will pick the correct
 #   implementation based on the subclass of the caller.
 class Player
-  attr_reader :score, :name, :code_length
+  attr_reader :score, :name, :code_length, :verbose
 
   def initialize(settings)
     raise UnspecifiedPlayerSubclassError unless is_a?(Human) || is_a?(Computer)
 
     @code_length = settings[:code_length]
     @score = 0
+    @verbose = settings[:verbose]
   rescue UnspecifiedPlayerSubclassError
     puts 'CRITICAL ERROR: an instance of the Player class is neither Human '\
       'nor Computer. Unable to proceed...'.colorize(:red)
@@ -384,142 +383,21 @@ end
 
 ###################################### COMPUTER ########################################
 
-# Contains method directly related to picking a particular guessing strategy and analysing
-#   guess results. Contains particular guessing methods.
-module GuessingAlgorithm
-  private
-
-  def analyse_last_guess
-    case last_guess_method[:name]
-    when :random_guess then nil
-    when :semi_random_guess then nil
-    when :change_one_digit then evaluate_change_one_digit
-    when :fix_last_change_one_digit then evaluate_fix_last_change_one_digit
-    when :rearrange_last_guess then evaluate_rearrangement
-    else raise TheProgrammerIsStupidError
-    end
-    check_for_known_digits_from_possibilities
-  end
-
-  # Makes a copy of the last guess with exactly one different digit.
-  def change_one_digit(last_guess)
-    guess_data = change_one_digit_core(last_guess)
-
-    @last_guess_method = { name: :change_one_digit, index: guess_data[:chosen_index] }
-    guess_data[:guess]
-  end
-
-  def change_one_digit_core(last_guess)
-    chosen_index = choose_an_index_to_change_value
-    digit_to_change = last_guess[chosen_index]
-    # Generates a random number to replace the digit intended to change. The loop won't stop
-    #   until it generates any different number which so far isn't considered useless.
-    replacement = digit_to_change
-    replacement = possibilities[chosen_index].sample while replacement == digit_to_change
-    # Creates a copy of the last guess (DUP is MANDATORY!) but with the 'replacement' digit
-    #   at the 'chosen_index' index.
-    new_guess = last_guess.dup # DUP prevents memory from being modified.
-    new_guess[chosen_index] = replacement
-    { guess: new_guess, chosen_index: chosen_index }
-  end
-
-  def check_for_known_digits_from_possibilities
-    known_digits.each_with_index do |e, i|
-      known_digits[i] = possibilities[i][0] if possibilities[i].length == 1 && e.nil?
-    end
-  end
-
-  def evaluate_change_one_digit
-    changed_index = @last_guess_method[:index]
-    case change_one_digit_score_difference
-    when 0 then both_digits_were_wrong(changed_index)
-    when 1 then new_correct_digit_found(changed_index)
-    when -1 then old_digit_was_correct(changed_index)
-    else raise TheProgrammerIsStupidError
-    end
-  end
-
-  def evaluate_fix_last_change_one_digit
-    raise TheProgrammerIsStupidError if memory[-3].nil?
-
-    changed_index = @last_guess_method[:index]
-    score_difference = fix_last_change_one_digit_score_difference
-    case score_difference
-    when 0 then both_digits_were_wrong(changed_index)
-    when 1 then new_correct_digit_found(changed_index)
-    when -1 then old_digit_was_correct(changed_index)
-    else raise TheProgrammerIsStupidError
-    end
-  end
-
-  def evaluate_rearrangement
-    if last_guess_score <= second_to_last_score # rubocop:disable Style/GuardClause
-      possibilities.each_with_index { |p, i| p.delete(last_guess[i]) unless p.length == 1 }
-      puts possibilities.to_s
-    end
-  end
-
-  def fix_last_change_one_digit(second_to_last_guess)
-    guess_data = change_one_digit_core(second_to_last_guess)
-
-    @last_guess_method = { name: :fix_change_one_digit, index: guess_data[:chosen_index] }
-    guess_data[:guess]
-  end
-
-  def force_unique_guess
-    loop do
-      guess = guessing_algorithm
-      return guess if memory.length.zero?
-
-      same_guesses = memory.select { |entry| entry.guess == guess }
-      return guess if same_guesses.length.zero?
-    end
-  end
-
-  # Redirects to a particular guessing method depending on some particular conditions.
-  #   This method is allowed greater complexity than usual.
-  def guessing_algorithm # rubocop:disable Metrics/AbcSize
-    return known_digits unless known_digits.include?(nil)
-    return random_guess if memory.all?(&:nil?)
-    return rearrange_last_guess if last_wrong.zero?
-    return fix_last_change_one_digit(second_to_last_guess) if
-      @last_guess_method == :change_one_digit_failure
-    return semi_random_guess if last_wrong >= @code_length / 2
-
-    change_one_digit(last_guess)
-  end
-
-  # Ensures that the known digits are included in the guess.
-  def include_known_digits(guess)
-    guess.each_with_index { |_e, id| guess[id] = known_digits[id] unless known_digits[id].nil? }
-    guess
-  end
-
-  # If all digits are correct but some are misplaced, there is no use of guessing randomly
-  #   or changing some digits at random. Instead it's better to rearrange the misaligned ones.
-  def rearrange_last_guess
-    guess = []
-    loop do
-      misses = misplaced_digits_to_rearrange
-      known_digits.each { |e| guess << (e.nil? ? misses.shuffle!.pop : e) }
-      puts "ACHTUNG!: #{guess}."
-      guess_possible?(guess) ? break : guess.clear
-    end
-    @last_guess_method = { name: :rearrange_last_guess }
-    guess
-  end
-end
-
 # Contains more descriptive names for some GuessingAlgorith variables.
 module GuessingAlgorithmAliases
-  # For evaluate change last guess.
-  def both_digits_were_wrong(index)
+  private
+
+  def both_digits_were_wrong_info(index)
     puts 'The Computer tried changing one digit resulting in no change in correctness. '\
-      "\nTherefore they can be safely ignored at position #{index + 1}.\n\n".colorize(:magenta)
+      "\nTherefore they can be safely ignored at position #{index}.\n\n"
+      .colorize(:yellow).underline
   end
 
+  # For evaluate change last guess. INFO: New guess registered.
   def change_one_digit_score_difference
-    memory[-2].nil? ? nil : memory[-1].correct - memory[-2].correct
+    raise TheProgrammerIsStupidError unless memory[-2]
+
+    memory[-1].correct - memory[-2].correct
   end
 
   def choose_an_index_to_change_value
@@ -533,21 +411,22 @@ module GuessingAlgorithmAliases
     true
   end
 
-  def fix_last_change_one_digit_score_difference
-    base_score = memory[-3].correct
-    memory[-1].correct - base_score
-  end
-
   def last_guess
-    memory[-1] ? memory[-1].guess : nil
+    raise TheProgrammerIsStupidError unless memory[-1]
+
+    memory[-1].guess
   end
 
   def last_guess_score
-    memory[-1] ? memory[-1].correct : nil
+    raise TheProgrammerIsStupidError unless memory[-1]
+
+    memory[-1].correct
   end
 
   def last_wrong
-    memory[-1] ? memory[-1].wrong : nil
+    raise TheProgrammerIsStupidError unless memory[-1]
+
+    memory[-1].wrong
   end
 
   def misplaced_digits_to_rearrange
@@ -558,19 +437,160 @@ module GuessingAlgorithmAliases
     misses
   end
 
-  def new_correct_digit_found(index)
-    known_digits[index] = last_guess[index]
-    possibilities[index] = [known_digits[index]]
-    puts "The Computer tried changing one digit at position #{index + 1}\n"\
-      "Task failed successfully!\n\n".colorize(:magenta)
+  def new_correct_digit_found_info(index)
+    puts  "The Computer tried changing one digit at position #{index}\n"\
+          "Task failed successfully!\n\n".colorize(:green).underline
   end
 
-  def old_digit_was_correct(index)
-    known_digits[index] = second_to_last_guess[index]
-    possibilities[index] = [known_digits[index]]
+  def old_digit_was_correct_info(index)
+    puts  "The Computer tried changing one digit, resulting in a score decrease.\n"\
+          "It now knows that the previous one was correct!\n"\
+          "Position: #{index}, value: #{known_digits[index]}.\n\n"
+      .colorize(:red).underline
+  end
+
+  def second_to_last_guess
+    raise TheProgrammerIsStupidError unless memory[-2]
+
+    memory[-2].guess
+  end
+
+  def second_to_last_score
+    raise TheProgrammerIsStupidError unless memory[-2]
+
+    memory[-2].correct
+  end
+
+  def second_to_last_wrong
+    raise TheProgrammerIsStupidError unless memory[-2]
+
+    memory[-2].wrong
+  end
+end
+
+# Contains methods used during the analyse_last_guess process
+#   (in Computer::acknowledge_results). All this stuff happens AFTER a guess is made.
+module GuessingAlgorithmAnalysis
+  private
+
+  def analyse_last_guess # rubocop:disable Metrics/MethodLength -> long case list
+    case last_guess_method[:name]
+    when :random_guess then nil
+    when :semi_random_guess then nil
+    when :change_one_digit then evaluate_change_one_digit
+    when :rearrange_last_guess then evaluate_rearrangement
+    when :change_one_digit_failure then nil
+    else raise TheProgrammerIsStupidError
+    end
+    check_for_known_digits_from_possibilities
+  rescue TheProgrammerIsStupidError => e
+    puts "#{e}: #{last_guess_method[:name]} you idiot, do you remember it?".colorize(:red)
+    exit(666)
+  end
+
+  # For evaluate change last guess. INFO: New guess registered.
+  def both_digits_were_wrong(index)
+    possibilities[index].delete(last_guess[index])
+    possibilities[index].delete(second_to_last_guess[index])
     @last_guess_method = { name: :change_one_digit_failure, index: :index }
-    puts "The Computer tried changing one digit, resulting in a score decrease.\n"\
-      "It now knows that the previous one was correct! Position: #{index}.\n\n".colorize(:magenta)
+    both_digits_were_wrong_info(index) if verbose
+  end
+
+  def evaluate_change_one_digit
+    changed_index = @last_guess_method[:index]
+    case change_one_digit_score_difference
+    when 0 then both_digits_were_wrong(changed_index)
+    when 1 then new_correct_digit_found(changed_index)
+    when -1 then old_digit_was_correct(changed_index)
+    else raise TheProgrammerIsStupidError
+    end
+  end
+
+  def evaluate_rearrangement
+    if last_guess_score <= count_known_digits # rubocop:disable Style/GuardClause
+      possibilities.each_with_index { |p, i| p.delete(last_guess[i]) unless p.length == 1 }
+      puts possibilities.to_s
+    end
+  end
+
+  # For evaluate change last guess. INFO: New guess registered.
+  def new_correct_digit_found(index)
+    known_digits[index] = last_guess[index] if known_digits[index].nil?
+    possibilities[index] = [known_digits[index]] unless possibilities[index].length == 1
+    new_correct_digit_found_info(index) if verbose
+  end
+
+  # For evaluate change last guess. INFO: New guess registered.
+  def old_digit_was_correct(index)
+    known_digits[index] = second_to_last_guess[index] if known_digits[index].nil?
+    possibilities[index] = [known_digits[index]] unless possibilities[index].length == 1
+    @last_guess_method = { name: :change_one_digit_failure, index: :index }
+    old_digit_was_correct_info(index) if verbose
+  end
+end
+
+# Contains method directly related to picking a particular guessing strategy and analysing
+#   guess results. Contains particular guessing methods.
+module GuessingAlgorithmGuessing
+  private
+
+  # Makes a copy of the last guess with exactly one different digit.
+  def change_one_digit(last_guess)
+    guess_data = change_one_digit_core(last_guess)
+    @last_guess_method = { name: :change_one_digit, index: guess_data[:chosen_index] }
+    guess_data[:guess]
+  end
+
+  def change_one_digit_core(last_guess)
+    chosen_index = choose_an_index_to_change_value
+    digit_to_change = last_guess[chosen_index]
+    
+    # Generates a random number to replace the digit intended to change. The loop won't stop
+    #   until it generates any different number which so far isn't considered useless.
+    replacement = digit_to_change
+    replacement = possibilities[chosen_index].sample while replacement == digit_to_change
+
+    # Creates a copy of the last guess (DUP is MANDATORY!) but with the 'replacement' digit
+    #   at the 'chosen_index' index.
+    new_guess = last_guess.dup # DUP prevents memory from being modified.
+    new_guess[chosen_index] = replacement
+    { guess: new_guess, chosen_index: chosen_index }
+  end
+
+  def check_for_known_digits_from_possibilities
+    known_digits.each_with_index do |e, i|
+      known_digits[i] = possibilities[i][0] if possibilities[i].length == 1 && e.nil?
+    end
+  end
+
+  def force_unique_guess
+    666.times do # 666 attempts should be enough to find a valid code
+      guess = guessing_algorithm
+      return guess if memory.length.zero?
+
+      same_guesses = memory.select { |entry| entry.guess == guess }
+      return guess if same_guesses.length.zero?
+    end
+    puts "It's taking too long... Known digits: #{known_digits}. #{possibilities}"
+    semi_random_guess
+  end
+
+  # Redirects to a particular guessing method depending on some particular conditions.
+  #   This method is allowed greater complexity than usual.
+  def guessing_algorithm
+    return known_digits unless known_digits.include?(nil)
+    return random_guess if memory.all?(&:nil?)
+    return rearrange_last_guess if last_wrong.zero?
+    return semi_random_guess if (@last_guess_method[:name] == :change_one_digit_failure) ||
+                                (last_wrong >= @code_length / 2)
+
+    change_one_digit(last_guess)
+  end
+
+  # Ensures that the known digits are included in the guess.
+  def include_known_digits(guess)
+    guess.each_with_index { |_e, id| guess[id] = known_digits[id] unless known_digits[id].nil? }
+    guess
   end
 
   def random_guess
@@ -578,16 +598,17 @@ module GuessingAlgorithmAliases
     make_code
   end
 
-  def second_to_last_guess
-    memory[-2] ? memory[-2].guess : nil
-  end
-
-  def second_to_last_score
-    memory[-2] ? memory[-2].correct : nil
-  end
-
-  def second_to_last_wrong
-    memory[-2] ? memory[-2].wrong : nil
+  # If all digits are correct but some are misplaced, there is no use of guessing randomly
+  #   or changing some digits at random. Instead it's better to rearrange the misaligned ones.
+  def rearrange_last_guess
+    guess = []
+    666.times do # 666 attempts should be enough to find a valid code
+      misses = misplaced_digits_to_rearrange
+      known_digits.each { |e| guess << (e.nil? ? misses.shuffle!.pop : e) }
+      guess_possible?(guess) ? break : guess.clear
+    end
+    @last_guess_method = { name: :rearrange_last_guess }
+    guess
   end
 
   # Random guess that ensures that the digits which are known to be correct are included
@@ -606,7 +627,8 @@ class Computer < Player
   attr_accessor :known_digits, :last_guess_method, :useless_digits, :memory,
                 :possibilities
 
-  include GuessingAlgorithm
+  include GuessingAlgorithmAnalysis
+  include GuessingAlgorithmGuessing
   include GuessingAlgorithmAliases
 
   def initialize(settings)
@@ -626,7 +648,7 @@ class Computer < Player
       exclude_useless_digits
     end
     remove_possibilities(results)
-    analyse_last_guess
+    analyse_last_guess # Uses module GuessingAlgorithmAnalysis
   end
 
   def clear_memory
@@ -637,6 +659,11 @@ class Computer < Player
     @last_guess_method = nil
   end
 
+  def count_known_digits
+    unknown_digits = known_digits.select(&:nil?)
+    known_digits.length - unknown_digits.length
+  end
+
   def create_possibilities
     possibilities = []
     code_length.times { possibilities << [1, 2, 3, 4, 5, 6] }
@@ -645,17 +672,6 @@ class Computer < Player
 
   def exclude_useless_digits
     possibilities.map! { |position| position - useless_digits }
-    puts possibilities.to_s.colorize(:red)
-  end
-
-  # Generates any random digit from 1 to 6 that still has a chance to be included in the code.
-  #   The reason is: if the computer gets ALL digits wrong in a guess, then there is no use
-  #   to include them in future guessses.
-  def generate_useful_digit
-    loop do
-      digit = rand(1..6)
-      return digit unless useless_digits.include?(digit)
-    end
   end
 
   def insert_to_memory(results)
@@ -667,21 +683,20 @@ class Computer < Player
   end
 
   def make_a_guess
-    guess = force_unique_guess
+    guess = force_unique_guess # Uses module GuessingAlgorithmGuessing
     puts "The computer has guessed: #{guess}.".colorize(:magenta)
-    sleep(0.5)
+    sleep(0.1)
     guess
   end
 
   def make_code
     code = []
-    code_length.times { code << generate_useful_digit }
+    code_length.times { code << [1, 2, 3, 4, 5, 6].sample }
     code
   end
 
   def remove_possibilities(results)
-    already_known_digits = known_digits.select { |x| x unless x.nil? }
-    if results[:correct] <= already_known_digits.length # rubocop:disable Style/GuardClause
+    if results[:correct] <= count_known_digits # rubocop:disable Style/GuardClause
       results[:guess].each_with_index do |g, i|
         possibilities[i].delete(g) unless possibilities[i].length == 1
       end
@@ -730,3 +745,45 @@ end
 PublicStaticVoidMainStringArgs.new.main
 puts 'Have a nice afterdoom!'.colorize(:red)
 sleep(4)
+
+####################################### TRASH ##########################################
+
+# Contains stuff that I've decided to REMOVE from the guessing algorith but may want to
+#   bring it back if I decide so.
+module GuessingAlgorithmTrashbin
+  # TODO: permanently remove useless stuff
+  def fix_last_change_one_digit(second_to_last_guess)
+    guess_data = change_one_digit_core(second_to_last_guess)
+
+    @last_guess_method = { name: :fix_change_one_digit, index: guess_data[:chosen_index] }
+    guess_data[:guess]
+  end
+
+  def fix_last_change_one_digit_score_difference
+    base_score = memory[-3].correct
+    memory[-1].correct - base_score
+  end
+
+  def evaluate_fix_last_change_one_digit
+    raise TheProgrammerIsStupidError if memory[-3].nil?
+
+    changed_index = @last_guess_method[:index]
+    score_difference = fix_last_change_one_digit_score_difference
+    case score_difference
+    when 0 then both_digits_were_wrong(changed_index)
+    when 1 then new_correct_digit_found(changed_index)
+    when -1 then old_digit_was_correct(changed_index)
+    else raise TheProgrammerIsStupidError
+    end
+  end
+
+  # Generates any random digit from 1 to 6 that still has a chance to be included in the code.
+  #   The reason is: if the computer gets ALL digits wrong in a guess, then there is no use
+  #   to include them in future guessses.
+  def generate_useful_digit
+    loop do
+      digit = rand(1..6)
+      return digit unless useless_digits.include?(digit)
+    end
+  end
+end
