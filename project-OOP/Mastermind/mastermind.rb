@@ -32,8 +32,8 @@ class PublicStaticVoidMainStringArgs
   attr_reader :default_settings
 
   def initialize
-    @default_settings = { rounds: 2, code_length: 4, guesses: 12, verbose: true }
-    @settings = { rounds: 2, code_length: 4, guesses: 12, verbose: true }
+    @default_settings = { code_length: 4, guesses: 12, rounds: 2, sleep: 0.5, verbose: true }
+    @settings = default_settings.dup
   end
 
   # This is where the entire program happens within. Allows to play multiple games and
@@ -68,7 +68,7 @@ class PublicStaticVoidMainStringArgs
 
   # Responsible for the number of guesses the guesser is allowed to make within one game.
   def change_guesses # rubocop:disable Metrics/AbcSize due to heavy formatting.
-    puts "Changing max guesses. Current value: #{settings[:guesses]}.".colorize(:blue)
+    puts "\nChanging max guesses. Current value: #{settings[:guesses]}.".colorize(:blue)
     puts  "New value must be an integer between 4 and 30; default is 12.\n"\
           "Recommended value: #{(settings[:code_length] * 4 - 4)}.".colorize(:yellow)
     answer = gets.chomp.to_i
@@ -77,7 +77,7 @@ class PublicStaticVoidMainStringArgs
 
   # Responsible for the rounds played in one game (must be an even number).
   def change_rounds
-    puts "Changing the number of round pairs. Current value: #{settings[:rounds]}.\n"\
+    puts "\nChanging the number of round pairs. Current value: #{settings[:rounds]}.\n"\
       "Each pair consists of you guessing the Computer's code and the computer "\
       'guessing yours'.colorize(:blue)
     puts 'New value must be an even integer between 1 and 10; default is 2'.colorize(:yellow)
@@ -86,9 +86,10 @@ class PublicStaticVoidMainStringArgs
   end
 
   def change_settings
-    change_rounds
     change_code_length
     change_guesses
+    change_rounds
+    change_sleep_duration
     toggle_verbosity
   end
 
@@ -105,6 +106,19 @@ class PublicStaticVoidMainStringArgs
     change_settings_interface unless force_valid_yes_or_no_input
   end
 
+  def change_sleep_duration
+    print_sleep_info
+    settings[:sleep] = 
+      case gets.chomp.to_i
+      when 1 then 0.001
+      when 2 then 0.5
+      when 3 then 1
+      when 4 then 1.5
+      when 5 then 2
+      else default_settings[:sleep]
+      end
+  end
+
   def greet_the_player
     puts "\nGood mourning! There is no dedicated help command as you will be "\
       'told what you need to type to achieve the desired results at the runtime. '\
@@ -118,9 +132,16 @@ class PublicStaticVoidMainStringArgs
     puts "\n"
   end
 
+  def print_sleep_info
+    puts  "\nHow long do you want the Computer to wait between each guess? There are 4 levels:\n"\
+      "1: 0.001 sec\n2: 0.5 sec\n3: 1 sec\n4: 1.5 sec\n5: 2 sec\nDefault is level 2: "\
+      "0.5 sec\nType one of these integers: 1, 2, 3, 4, 5 to set the sleep duration."
+      .colorize(:blue)
+  end
+
   def toggle_verbosity
-    puts "Do you want to receive a print of Computer'"\
-      's guessing history after each round? (yes/no, default is yes)'.colorize(:blue)
+    puts "\nDo you want to receive a print of extra information about Computer's guessing and "\
+      'guessing history after each round? (yes/no, default is yes)'.colorize(:blue)
     settings[:verbose] = force_valid_yes_or_no_input
   end
 end
@@ -130,13 +151,13 @@ end
 # Contains variables that will be set to a certain value after each game start,
 #   defaults and methods that don't fit the other, more specific classes.
 class Game
-  attr_reader :player1, :player2, :rounds, :current_round, :verbose,
-              :max_guesses, :current_guess, :winner, :code_length
+  attr_reader :code_length, :current_round, :current_guess, :max_guesses,
+              :player1, :player2, :rounds, :verbose, :winner
 
   def initialize(settings)
-    @rounds = settings[:rounds] * 2
     @code_length = settings[:code_length]
     @max_guesses = settings[:guesses]
+    @rounds = settings[:rounds] * 2
     @verbose = settings[:verbose]
 
     @player1 = human_wants_to_start? ? Human.new(settings) : Computer.new(settings)
@@ -203,8 +224,8 @@ end
 
 # Used to easily reset rounds
 class Round
-  attr_reader :code_maker, :guesser, :max_guesses, :code
   attr_accessor :guesses_made
+  attr_reader :code, :code_maker, :guesser, :max_guesses
 
   def initialize(code_maker, guesser, max_guesses)
     guesser.is_a?(Computer) ? guesser.clear_memory : code_maker.clear_memory
@@ -268,14 +289,14 @@ class Round
   #   to the Computer if it is the guesser.
   def evaluate_guess(code, guess, guesser)
     correct = count_correctly_placed_digits(code, guess)
-    misplaced = count_misplaced_digits(code.dup, guess.dup)
-    puts "Correctly placed digits: #{correct}.".colorize(:green)
-    puts "Correct but misplaced digits: #{misplaced}.\n\n".colorize(:yellow)
-    # For Computer's AI (TODO)
+    misplaced = count_misplaced_digits(code.dup, guess.dup) # involves a destructive
+    wrong = code.length - (correct + misplaced)
+    print_round_results(correct, misplaced, wrong)
+    # For Computer's AI
     results = { guess: guess,
                 correct: correct,
                 misplaced: misplaced,
-                wrong: code.length - (correct + misplaced) }
+                wrong: wrong }
     guesser.acknowledge_results(results) if guesser.is_a?(Computer)
   end
 
@@ -287,6 +308,12 @@ class Round
   def guess_prompt
     "#{guesser.name}, please make your guess. "\
         "Attempt number: #{guesses_made + 1}/#{max_guesses}\n\n".colorize(:yellow)
+  end
+
+  def print_round_results(correct, misplaced, wrong)
+    puts "Correctly placed digits: #{correct}.".colorize(:green).underline
+    puts "Correct but misplaced digits: #{misplaced}.".colorize(:yellow)
+    puts "Digits both wrong and in wrong place: #{wrong}.\n\n".colorize(:red)
   end
 
   def remove_correct_digits(code, guess)
@@ -322,13 +349,14 @@ end
 #   of human/AI behaviour are combined here under one name that will pick the correct
 #   implementation based on the subclass of the caller.
 class Player
-  attr_reader :score, :name, :code_length, :verbose
+  attr_reader :code_length, :name, :score, :sleep_duration, :verbose
 
   def initialize(settings)
     raise UnspecifiedPlayerSubclassError unless is_a?(Human) || is_a?(Computer)
 
     @code_length = settings[:code_length]
     @score = 0
+    @sleep_duration = settings[:sleep]
     @verbose = settings[:verbose]
   rescue UnspecifiedPlayerSubclassError
     puts 'CRITICAL ERROR: an instance of the Player class is neither Human '\
@@ -544,7 +572,7 @@ module GuessingAlgorithmGuessing
   def change_one_digit_core(last_guess)
     chosen_index = choose_an_index_to_change_value
     digit_to_change = last_guess[chosen_index]
-    
+
     # Generates a random number to replace the digit intended to change. The loop won't stop
     #   until it generates any different number which so far isn't considered useless.
     replacement = digit_to_change
@@ -624,8 +652,8 @@ end
 # The AI you will be playing against. Contains most memory-related methods and basic
 #   code generators (only simple RNG).
 class Computer < Player
-  attr_accessor :known_digits, :last_guess_method, :useless_digits, :memory,
-                :possibilities
+  attr_accessor :known_digits, :last_guess_method, :memory, :possibilities,
+                :useless_digits
 
   include GuessingAlgorithmAnalysis
   include GuessingAlgorithmGuessing
@@ -677,15 +705,15 @@ class Computer < Player
   def insert_to_memory(results)
     memory << MemoryCell.new(
       memory.length + 1, # ID
-      results, # Guess, correct, misplaced, wrong.
-      last_guess_method # Last guess method
+      last_guess_method, # Last guess method
+      results # Guess, correct, misplaced, wrong.
     )
   end
 
   def make_a_guess
     guess = force_unique_guess # Uses module GuessingAlgorithmGuessing
     puts "The computer has guessed: #{guess}.".colorize(:magenta)
-    sleep(0.1)
+    sleep(sleep_duration)
     guess
   end
 
@@ -706,15 +734,15 @@ end
 
 # Allows the computer to remember previous guesses (and their results) in a structured way.
 class MemoryCell
-  attr_reader :id, :guess, :correct, :misplaced, :wrong, :method
+  attr_reader :correct, :guess, :id, :method, :misplaced, :wrong
 
-  def initialize(id, results, method)
-    @id = id
-    @guess = results[:guess].freeze
+  def initialize(id, method, results)
     @correct = results[:correct]
+    @guess = results[:guess].freeze
+    @id = id
+    @method = method
     @misplaced = results[:misplaced]
     @wrong = results[:wrong]
-    @method = method
   end
 
   def to_s
