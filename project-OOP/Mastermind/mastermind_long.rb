@@ -237,11 +237,11 @@ class Game
   end
 
   def the_guesser
-    current_round.even? ? player1 : player2
+    current_round.odd? ? player1 : player2
   end
 
   def the_maker
-    current_round.odd? ? player1 : player2
+    current_round.even? ? player1 : player2
   end
 end
 
