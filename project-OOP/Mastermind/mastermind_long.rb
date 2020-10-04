@@ -32,7 +32,11 @@ class PublicStaticVoidMainStringArgs
   attr_reader :default_settings
 
   def initialize
-    @default_settings = { code_length: 4, guesses: 12, rounds: 2, sleep: 0.5, verbose: true }
+    @default_settings = { code_length: 4,
+                          guesses: 12,
+                          rounds: 2,
+                          sleep: 0.5,
+                          verbose: true }
     @settings = default_settings.dup
   end
 
@@ -61,18 +65,18 @@ class PublicStaticVoidMainStringArgs
   # Responsible for the length of the code the guesser will have to guess.
   def change_code_length
     puts "Changing code length. Current value: #{settings[:code_length]}.".colorize(:blue)
-    puts 'New value must be one of those: 2, 3, 4 (default), 5, 6, 7.'.colorize(:yellow)
+    puts 'New value must an integer from 2 to 15 (if you dare). Default: 4.'.colorize(:yellow)
     answer = gets.chomp.to_i
-    settings[:code_length] = answer.between?(2, 7) ? answer : default_settings[:code_length]
+    settings[:code_length] = answer.between?(2, 15) ? answer : default_settings[:code_length]
   end
 
   # Responsible for the number of guesses the guesser is allowed to make within one game.
-  def change_guesses # rubocop:disable Metrics/AbcSize due to heavy formatting.
+  def change_guesses
     puts "\nChanging max guesses. Current value: #{settings[:guesses]}.".colorize(:blue)
-    puts  "New value must be an integer between 4 and 30; default is 12.\n"\
-          "Recommended value: #{(settings[:code_length] * 4 - 4)}.".colorize(:yellow)
+    puts  "New value must be an integer between 2 and 100 (please don't).\n"\
+          "Recommended (and default) value: #{recommended_guesses_limit}.".colorize(:yellow)
     answer = gets.chomp.to_i
-    settings[:guesses] = answer.between?(4, 30) ? answer : default_settings[:guesses]
+    settings[:guesses] = answer.between?(2, 100) ? answer : recommended_guesses_limit
   end
 
   # Responsible for the rounds played in one game (must be an even number).
@@ -80,9 +84,9 @@ class PublicStaticVoidMainStringArgs
     puts "\nChanging the number of round pairs. Current value: #{settings[:rounds]}.\n"\
       "Each pair consists of you guessing the Computer's code and the computer "\
       'guessing yours'.colorize(:blue)
-    puts 'New value must be an even integer between 1 and 10; default is 2'.colorize(:yellow)
+    puts 'New value must be an even integer between 1 and 20; default is 2'.colorize(:yellow)
     answer = gets.chomp.to_i
-    settings[:rounds] = answer.between?(1, 10) ? answer : default_settings[:rounds]
+    settings[:rounds] = answer.between?(1, 20) ? answer : default_settings[:rounds]
   end
 
   def change_settings
@@ -108,7 +112,7 @@ class PublicStaticVoidMainStringArgs
 
   def change_sleep_duration
     print_sleep_info
-    settings[:sleep] = 
+    settings[:sleep] =
       case gets.chomp.to_i
       when 1 then 0.001
       when 2 then 0.5
@@ -139,6 +143,10 @@ class PublicStaticVoidMainStringArgs
       .colorize(:blue)
   end
 
+  def recommended_guesses_limit
+    ((settings[:code_length] - 1) * 4)
+  end
+
   def toggle_verbosity
     puts "\nDo you want to receive a print of extra information about Computer's guessing and "\
       'guessing history after each round? (yes/no, default is yes)'.colorize(:blue)
@@ -147,6 +155,16 @@ class PublicStaticVoidMainStringArgs
 end
 
 ######################################## GAME ##########################################
+
+# Contains a single method for printing the current round ID, used both in the Game and the
+#   Round classes.
+module FormattedCurrentRound
+  def formatted_current_round
+    letter = current_round.odd? ? 'A' : 'B'
+    digit = (current_round + 1) / 2
+    "#{digit}-#{letter}"
+  end
+end
 
 # Contains variables that will be set to a certain value after each game start,
 #   defaults and methods that don't fit the other, more specific classes.
@@ -166,6 +184,8 @@ class Game
     @current_round = 1
     @current_guess = 1
   end
+
+  include FormattedCurrentRound
 
   def human_starts?
     return true if player1.is_a?(Human)
@@ -210,47 +230,46 @@ class Game
   end
 
   def start_round
-    guesser = current_round.odd? ? player1 : player2
-    code_maker = current_round.even? ? player1 : player2
+    Round.new(the_maker, the_guesser, max_guesses, current_round).play_the_round(verbose)
 
-    Round.new(code_maker, guesser, max_guesses).play_the_round(verbose)
-
-    puts "Round #{current_round} finished!".colorize(:green)
+    puts "Round #{formatted_current_round} finished!".colorize(:green)
     prepare_next_round
+  end
+
+  def the_guesser
+    current_round.even? ? player1 : player2
+  end
+
+  def the_maker
+    current_round.odd? ? player1 : player2
   end
 end
 
 ######################################## ROUND #########################################
 
 # Used to easily reset rounds
-class Round
+class Round # rubocop:disable Metrics/ClassLength
   attr_accessor :guesses_made
-  attr_reader :code, :code_maker, :guesser, :max_guesses
+  attr_reader :code, :code_maker, :current_round, :guesser, :max_guesses
 
-  def initialize(code_maker, guesser, max_guesses)
+  def initialize(code_maker, guesser, max_guesses, current_round)
     guesser.is_a?(Computer) ? guesser.clear_memory : code_maker.clear_memory
     @code_maker = code_maker
     @guesser = guesser
+    @current_round = current_round
     @max_guesses = max_guesses
     @guesses_made = 0
     puts initial_message(code_maker, code_maker.code_length)
     @code = code_maker.make_code
   end
 
+  include FormattedCurrentRound
+
   # The message that will be printed out at the start of each round. The parametres are
   #   just shorthands for the code_maker and code_maker.code_length variables, respectively.
   #   Otherwise the strings are getting even more absurdly longer...
   def initial_message(maker, len)
-    if maker.is_a? Computer
-      "The #{maker} has created its code. Your task is to guess it! \n".colorize(:magenta) +
-        "Remember, the code is #{len} digits long.\nIf you guess correctly, the #{maker} will "\
-        "receive #{len} points instead of you receiving 1.\nRemember: points are bad!\n"
-        .colorize(:green) + "You can guess up to #{max_guesses} times. GL.".colorize(:yellow)
-    else
-      "Looks like you are making the code this time. The #{guesser} should "\
-        "be able to quickly make its guesses, though results may vary...\n".colorize(:cyan) +
-        "The code has to be #{len} digits long.".colorize(:green)
-    end
+    maker.is_a?(Computer) ? the_maker_is_a_computer(maker, len) : the_maker_is_a_human(len)
   end
 
   def play_the_round(verbose)
@@ -339,6 +358,21 @@ class Round
 
   def show_memory(guesser)
     puts guesser.memory if guesser.is_a?(Computer)
+  end
+
+  def the_maker_is_a_computer(maker, len)
+    puts  "\nRound #{formatted_current_round}: \n\n".colorize(:green) +
+          "The #{maker} has created its code. Your task is to guess it! \n".colorize(:magenta) +
+          "Remember, the code is #{len} digits long.\nIf you guess correctly, the #{maker} will "\
+          "receive #{len} points instead of you receiving 1.\nRemember: points are bad!\n"
+          .colorize(:green) + "You can guess up to #{max_guesses} times. GL.".colorize(:yellow)
+  end
+
+  def the_maker_is_a_human(len)
+    puts  "\nRound #{formatted_current_round}: \n\n".colorize(:green) +
+          "Looks like you are making the code this time. The #{guesser} should "\
+          "be able to quickly make its guesses, though results may vary...\n".colorize(:cyan) +
+          "The code has to be #{len} digits long.".colorize(:green)
   end
 end
 
@@ -535,10 +569,9 @@ module GuessingAlgorithmAnalysis
   end
 
   def evaluate_rearrangement
-    if last_guess_score <= count_known_digits # rubocop:disable Style/GuardClause
-      possibilities.each_with_index { |p, i| p.delete(last_guess[i]) unless p.length == 1 }
-      puts possibilities.to_s
-    end
+    return unless last_guess_score <= count_known_digits
+
+    possibilities.each_with_index { |p, i| p.delete(last_guess[i]) unless p.length == 1 }
   end
 
   # For evaluate change last guess. INFO: New guess registered.
@@ -635,7 +668,7 @@ module GuessingAlgorithmGuessing
       known_digits.each { |e| guess << (e.nil? ? misses.shuffle!.pop : e) }
       guess_possible?(guess) ? break : guess.clear
     end
-    @last_guess_method = { name: :rearrange_last_guess }
+    @last_guess_method = { name: :rearrange_last_guess, index: nil }
     guess
   end
 
@@ -724,10 +757,10 @@ class Computer < Player
   end
 
   def remove_possibilities(results)
-    if results[:correct] <= count_known_digits # rubocop:disable Style/GuardClause
-      results[:guess].each_with_index do |g, i|
-        possibilities[i].delete(g) unless possibilities[i].length == 1
-      end
+    return unless results[:correct] <= count_known_digits
+
+    results[:guess].each_with_index do |g, i|
+      possibilities[i].delete(g) unless possibilities[i].length == 1
     end
   end
 end

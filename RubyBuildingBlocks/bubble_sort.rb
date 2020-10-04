@@ -1,20 +1,21 @@
 def bubble_sort(array)
-        swaps = nil
-        until swaps == 0 do
-                swaps = 0
-                print "Repeating: \n"
-                for x in 0...(array.length - 1) do
-                        if array[x] >  array[x + 1]
-                                print "Swapping elements #{x} with #{x + 1}: #{array}\n => "
-                                swaps += 1
-                                temp = array[x]
-                                array[x] = array[x + 1]
-                                array[x + 1] = temp
-                                print "#{array} \n"
-                        end
-                end
+  swaps = nil
+  until swaps == 0 do
+    swaps = 0
+    print "Repeating: \n"
+    array.each_index do |x|
+      break if array[x + 1].nil?
 
-        end
+      next unless array[x] > array[x + 1]
+
+      print "Swapping elements #{x} with #{x + 1}: #{array}\n => "
+      swaps += 1
+      temp = array[x]
+      array[x] = array[x + 1]
+      array[x + 1] = temp
+      print "#{array} \n"
+    end
+  end
 end
 
 bubble_sort([1, 2, 5, 3, 4, 6, 9, 8, 7])
