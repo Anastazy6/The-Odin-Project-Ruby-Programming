@@ -17,4 +17,8 @@ Includes the ability to change settings and load them every time you start a new
 ---
 By ***Anastazy6***
 
-The included dictionary.txt file is 5desk.txt from [Scrapmaker](https://www.scrapmaker.com/view/twelve-dicts/5desk.txt). All rights belong to their owners.
+---
+
+The included dictionary.txt file is 5desk.txt from [Scrapmaker](https://www.scrapmaker.com/view/twelve-dicts/5desk.txt). All rights belong to their owners. 
+
+This file can be replaced with any other similar one-word-per-line file, as long as it is name and path remain unchanged.
