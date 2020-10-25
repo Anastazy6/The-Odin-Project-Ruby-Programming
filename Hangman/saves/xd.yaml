@@ -1,0 +1,16 @@
+---
+:game_data:
+  :settings:
+    :max_word_length: 13
+    :min_word_length: 5
+    :misses_available: 10
+    :number_of_round_pairs: 2
+    :player_1_type: :human
+    :player_2_type: :computer
+    :intelligent_computer: true
+  :current_round: 2
+:round_data:
+:player_1_data:
+  :score: 9
+:player_2_data:
+  :score: 6
