@@ -4,8 +4,8 @@
 class SecretWord < Array
   attr_accessor :secret_word
 
-  def initialize(secret_word_prototype)
-    make_secret_word_from(secret_word_prototype)
+  def initialize(secret_word_prototype = nil)
+    make_secret_word_from(secret_word_prototype) if secret_word_prototype
   end
 
   # Sets the secret code letters' state to :found if they match the guess.
@@ -28,6 +28,22 @@ class SecretWord < Array
   def to_s
     each { |l| print " #{l} " }
     print "\n"
+  end
+
+  def to_regex
+    word = []
+    each { |l| word << (l.state == :unknown ? '[a-z]' : l.content) }
+    reg = word.join('').downcase
+
+    %r{^#{reg}$}
+  end
+
+  def print_failed_word
+    each do |l|
+      l.incorrect_letter unless l.state == :found
+      print " #{l} "
+    end
+    puts "\nFirst time?\n".colorize(:blue)
   end
 
   private

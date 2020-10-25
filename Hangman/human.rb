@@ -2,14 +2,18 @@
 
 # Human player.
 class Human < Player
-  def initialize(id, settings)
-    super
+  attr_reader :the_game
+
+  def initialize(id, settings, the_game, data = nil)
+    super(id, settings, data)
+    @the_game = the_game
+    @score = data[:score] if data
   end
 
   include MessagesForHuman
 
   def choose_secret_word(allowed_words)
-    secure_word_prompt_message
+    secure_word_prompt_message(color)
     loop do
       secret_word = secure_gets.chomp.downcase
       return SecretWord.new(secret_word) if secret_word_valid?(allowed_words, secret_word)
@@ -20,7 +24,10 @@ class Human < Player
 
   def make_guess
     make_guess_message
-    gets.chomp.upcase
+    guess = gets.chomp
+    return the_game.save_game if guess.downcase =~ /^save$/
+
+    guess.upcase
   end
 
   def secret_word_valid?(allowed_words, secret_word)

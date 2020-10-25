@@ -3,24 +3,27 @@
 # Initializes each game with given settings and runs the main game loop.
 class Game
   attr_reader :allowed_words, :current_round, :max_word_length, :min_word_length,
-              :misses_available, :player1, :player2, :settings, :total_rounds
+              :misses_available, :player1, :player_1_data, :player2, :player_2_data,
+              :round, :round_data, :settings, :total_rounds
 
   include SharedMethods
   include MessagesForGame
+  include Save
+  include Load
+  include MessagesForSave
 
-  def initialize(settings)
+  def initialize(settings, load_from = nil)
+    @settings = load_from ? load_from[:game_data][:settings] : settings
     @max_word_length = settings[:max_word_length]
     @min_word_length = settings[:min_word_length]
     @allowed_words = load_dictionary
-    @player1 = human?(1, settings) ? Human.new(1, settings) : Computer.new(1, settings)
-    @player2 = human?(2, settings) ? Human.new(2, settings) : Computer.new(2, settings)
+    @total_rounds = settings[:number_of_round_pairs].to_i * 2
     @misses_available = settings[:misses_available]
-    @current_round = 1
-    @total_rounds = settings[:number_of_rounds].to_i * 2
+    load_from ? load_game(load_from) : create_new_game
   end
 
   def main_loop
-    puts 'Goodbye cruel world!'.colorize(:red)
+    player_colors_message
     start_round until current_round > total_rounds
     winner =
       case player1.score <=> player2.score # Just like in Mastermind: lower score is better.
@@ -33,6 +36,15 @@ class Game
   end
 
   private
+
+  def create_new_game
+    @player1 = make_player_and_set_type(1, settings, allowed_words)
+    @player2 = make_player_and_set_type(2, settings, allowed_words)
+    @current_round = 1
+    @round_data = nil
+    @player_1_data = nil
+    @player_2_data = nil
+  end
 
   def human?(player_id, settings)
     player_symbol = "player_#{player_id}_type".to_sym
@@ -47,15 +59,38 @@ class Game
     words
   end
 
+  def load_game(data)
+    load_game_data(data)
+    @round_data = data[:round_data]
+    @player_1_data = data[:player_1_data]
+    @player_2_data = data[:player_2_data]
+  end
+
+  def load_game_data(data)
+    @player1 = make_player_and_set_type(1, settings, allowed_words, data)
+    @player2 = make_player_and_set_type(2, settings, allowed_words, data)
+    @current_round = data[:game_data][:current_round]
+  end
+
+  def make_player_and_set_type(id, settings, words, data = nil)
+    data =
+      if data
+        id == 1 ? data[:player_1_data] : data[:player_2_data]
+      end
+    human?(id, settings) ? Human.new(id, settings, self, data) : Computer.new(id, settings, words, data)
+  end
+
   def prepare_next_round
     print_score(player1, player2)
+    @round_data = nil # Prevents infinite loading of the same round.
     @current_round += 1
-    player1.reset_memory if player1.is_a?(Computer)
-    player2.reset_memory if player2.is_a?(Computer)
+    player1.reset_memory(allowed_words) if player1.is_a?(Computer)
+    player2.reset_memory(allowed_words) if player2.is_a?(Computer)
   end
 
   def start_round
-    Round.new(executioner, prisoner, misses_available, current_round, allowed_words).play_round
+    @round = Round.new(executioner, prisoner, misses_available, current_round, allowed_words, @round_data)
+    round.play_round
     round_finished(current_round)
     prepare_next_round
   end

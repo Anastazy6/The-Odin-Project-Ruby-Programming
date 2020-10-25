@@ -1,7 +1,8 @@
 ---
-:max_word_length: 15
-:min_word_length: 8
-:misses_available: 8
-:number_of_rounds: 2
+:max_word_length: 13
+:min_word_length: 5
+:misses_available: 10
+:number_of_round_pairs: 2
 :player_1_type: :human
-:player_2_type: :human
+:player_2_type: :computer
+:intelligent_computer: true

@@ -10,7 +10,7 @@ class Player
   include MessagesForPlayer
   include SharedMethods
 
-  def initialize(id, settings)
+  def initialize(id, settings, _placeholder = nil, _placeholder2 = nil)
     raise UnspecifiedPlayerSubclassError unless is_a?(Human) || is_a?(Computer)
 
     @id = id
@@ -22,10 +22,6 @@ class Player
   rescue UnspecifiedPlayerSubclassError => e
     unspecified_player_subclass_error(e)
     exit(1)
-  end
-
-  def choose_secret_word(_allowed_words)
-    puts 'TODO!'.colorize(:red)
   end
 
   def gain_score(points)

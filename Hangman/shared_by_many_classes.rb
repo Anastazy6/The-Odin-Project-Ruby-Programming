@@ -1,22 +1,14 @@
 # frozen_string_literal: true
 
+# 80-columns long comment so that I know what the optimal max line length is. ##
+# 100-columns long comment so that I know what the reasonable line length limit is. ################
+# 120-columns long comment so that I know what's the longest line I can write if I ever need to...######################
+
 # xD
 class TheProgrammerIsStupidError < StandardError; end
 
-# Raised when a shared method is used by an instance of a class that is not
-#   meant to use the method.
-class UnavailableMethodError < TheProgrammerIsStupidError; end
-
 # Methods that either are shared by several classes or are generic/universal.
 module SharedMethods
-  # Ensures that if a class is not supposed to be able to use a certain shared method, it will
-  #   not happen. Never.
-  def available_for(classes_allowed_to_use_the_method)
-    raise UnavailableMethodError unless classes_allowed_to_use_the_method.include?(self.class)
-
-    nil
-  end
-
   def choose_smaller(number1, number2)
     case number1 <=> number2
     when -1 then number1
@@ -44,6 +36,15 @@ module SharedMethods
       return false if answer.match(/^n(o)?$/)
 
       invalid_yes_or_no_input_message
+    end
+  end
+
+  def getint
+    loop do
+      number = gets.chomp
+      return number.to_i if number =~ /[0-9]+/
+
+      puts 'Invalid input: type an integer value.'.colorize(:red)
     end
   end
 
