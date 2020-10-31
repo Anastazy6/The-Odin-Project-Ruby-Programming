@@ -1,0 +1,54 @@
+---
+:game_data:
+  :settings:
+    :max_word_length: 18
+    :min_word_length: 5
+    :misses_available: 8
+    :number_of_round_pairs: 2
+    :player_1_type: :human
+    :player_2_type: :computer
+    :intelligent_computer: true
+  :current_round: 4
+:round_data:
+  :executioner: 2
+  :prisoner: 1
+  :misses_available: 8
+  :current_round: 4
+  :misses_this_round: 3
+  :secret_word:
+  - - T
+    - :found
+  - - R
+    - :unknown
+  - - A
+    - :found
+  - - V
+    - :unknown
+  - - E
+    - :found
+  - - L
+    - :unknown
+  - - L
+    - :unknown
+  - - E
+    - :found
+  - - R
+    - :unknown
+  :incorrect_letters:
+  - - O
+    - :incorrect
+  - - P
+    - :incorrect
+  - - S
+    - :incorrect
+  :found_letters:
+  - - E
+    - :found
+  - - T
+    - :found
+  - - A
+    - :found
+:player_1_data:
+  :score: 21
+:player_2_data:
+  :score: 9

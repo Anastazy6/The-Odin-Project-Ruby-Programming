@@ -5,16 +5,16 @@
 #   of memory!)
 module Save
   def save_game
-    File.open("saves/#{choose_name}.yaml", 'w') do |save|
+    file_name = choose_name
+    File.open("saves/#{file_name}.yaml", 'w') do |save|
       save.puts(YAML.dump(all_data))
     end
-    puts 'Game saved.'.colorize(:green)
+    puts "Game saved: #{file_name}.yaml".colorize(:green)
   end
 
   def all_data
-    binding.pry
     { game_data: game_data,
-      round_data: round_data(round),
+      round_data: round_data_xd, # does not work properly without the _xd part in name...
       player_1_data: player_data(1),
       player_2_data: player_data(2) }
   end
@@ -29,15 +29,17 @@ module Save
       current_round: current_round }
   end
 
-  def round_data(round)
-    { executioner: round.executioner.id,
-      prisoner: round.prisoner.id,
-      misses_available: round.misses_available,
-      current_round: round.current_round,
-      misses_this_round: round.misses_this_round,
-      secret_word: save_letters(round.secret_word),
-      incorrect_letters: save_letters(round.incorrect_letters),
-      found_letters: save_letters(round.found_letters) }
+  def round_data_xd
+    the_round = @round
+    data = {  executioner: the_round.executioner.id,
+              prisoner: the_round.prisoner.id,
+              misses_available: the_round.misses_available,
+              current_round: the_round.current_round,
+              misses_this_round: the_round.misses_this_round,
+              secret_word: save_letters(the_round.secret_word),
+              incorrect_letters: save_letters(the_round.incorrect_letters),
+              found_letters: save_letters(the_round.found_letters) }
+    data # Redudnant, but I had a tough time debugging this method, better to keep it as it is.
   end
 
   def player_data(id)
@@ -78,7 +80,7 @@ module Load
 
       case action.upcase
       when 'Q' then offset -= 1 unless offset.zero?
-      when 'E' then offset += 1 unless saves[(8 * offset + 1)..(7 + (8 * offset + 1))].length.zero?
+      when 'E' then offset += 1 unless saves.length / 8 < offset + 1
       when 'X' then return main_menu
       else puts 'Invalid input!'.colorize(:red)
       end

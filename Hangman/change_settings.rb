@@ -45,7 +45,7 @@ module ChangeSettingsMethods
     end
   end
 
-  def change_number_of_rounds
+  def change_number_of_round_pairs
     change_rounds_help(abs_min_rounds)
     loop do # Enforces valid input
       new_value = getint
@@ -68,8 +68,8 @@ module ChangeSettingsMethods
     settings[:player_2_type] = force_valid_yes_or_no_input ? :human : :computer
   end
 
-  def change_AI_difficulty # rubocop:disable Naming/MethodName -> exception for an acronym.
-    change_AI_difficulty_help
+  def change_ai_difficulty
+    change_ai_difficulty_help
     settings[:intelligent_computer] = force_valid_yes_or_no_input
   end
 end

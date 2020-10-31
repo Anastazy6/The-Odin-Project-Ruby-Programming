@@ -57,7 +57,7 @@ class Hangman
     when 4 then change_number_of_round_pairs
     when 5 then change_player1_type
     when 6 then change_player2_type
-    when 7 then change_AI_difficulty
+    when 7 then change_ai_difficulty
     else return user_sure?
     end
     false

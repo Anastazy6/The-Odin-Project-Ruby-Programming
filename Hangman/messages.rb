@@ -95,11 +95,11 @@ end
 
 # Contains prints for the Game class.
 module MessagesForGame
-  def player_colors_message
+  def player_colors_message # rubocop:disable Metrics/AbcSize
     puts  'Remember that '.colorize(:yellow) + 'Player 1 '.colorize(:cyan) + 'is now always '\
           'colorized '.colorize(:yellow) + 'cyan '.colorize(:cyan) + 'while '.colorize(:yellow) +
-          'Player 2 '.colorize(:magenta) + 'is '.colorize(:yellow) + 'magenta'
-          .colorize(:magenta) + '.'.colorize(:yellow)
+          'Player 2 '.colorize(:magenta) + 'is '.colorize(:yellow) +
+          'magenta'.colorize(:magenta) + '.'.colorize(:yellow)
     puts "Unfortunately, color-blind mode is not provided.\n".colorize(:yellow)
   end
 
@@ -125,7 +125,7 @@ module MessagesForHangman
     puts "Invalid input! Type a natural number between #{min} and #{max}!".colorize(:red)
   end
 
-  def change_AI_difficulty_help
+  def change_ai_difficulty_help
     puts  "You are about to change every computer players's intelligence level. Type 'no', if "\
           "you want them to make totally random guesses or 'yes', if you want them to guess as "\
           'if they were looking for one of the available words, just like humans.'.colorize(:yellow)
@@ -297,7 +297,10 @@ end
 # Same story here.
 module MessagesForLoad
   def info_about_load(visible_saves)
-    8.times { |t| puts "#{t + 1} -> #{visible_saves[t - 1]}".colorize(:yellow) }
+    8.times do |t|
+      content =  (visible_saves ? visible_saves[t - 1] : 'EMPTY SLOT')
+      puts "#{t + 1} -> #{content}".colorize(:yellow)
+    end
     puts "Q -> Previous \nE -> Next \nX -> Main menu".colorize(:green)
   end
 end
