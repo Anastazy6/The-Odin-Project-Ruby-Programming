@@ -100,7 +100,6 @@ class Hangman
   def public_static_void_main_string_args(load_from=nil)
     greet_the_player
     Game.new(settings, load_from).main_loop
-    # TODO
   end
 
   def save_settings(new_settings)
