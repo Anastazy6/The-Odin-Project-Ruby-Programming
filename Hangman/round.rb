@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# XD TODO: comment.
+# Contains code that is used for playing rounds, from choosing the secret word to guessing (or failing to do so) it.     
 class Round # rubocop:disable Metrics/ClassLength
   include MessagesForRound
   include MessagesForDrawing
