@@ -11,6 +11,6 @@ Currently included:
 ### Ruby Object-Oriented Programming
 - Mastermind
 - Tic tac toe
-## OOP + Serialization
+### OOP + Serialization
 - Hangman
 ---
