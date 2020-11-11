@@ -9,8 +9,8 @@ Currently included:
 - Substring (april 2020)
 ---
 ### Ruby Object-Oriented Programming
-- Mastermind
-- Tic tac toe
+- Mastermind (september/early october 2020)
+- Tic tac toe (september 2020)
 ### OOP + Serialization
-- Hangman
+- Hangman (late october 2020)
 ---
